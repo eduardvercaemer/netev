@@ -1,4 +1,6 @@
 extern crate netev;
+use std::thread;
+use std::time::Duration;
 
 fn main() {
     /* usage example */
@@ -23,5 +25,10 @@ fn main() {
         if let Some(e) = poller.next() {
             println!("got event: {:?}", e);
         }
+
+        /*
+           simulate game logic with a sleep
+        */
+        thread::sleep(Duration::from_millis(500));
     }
 }

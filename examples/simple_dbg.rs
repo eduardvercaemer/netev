@@ -9,8 +9,9 @@ fn main() {
     */
     let sock = UdpSocket::bind("localhost:34254").unwrap();
     sock.connect("localhost:8000").unwrap();
-    loop {
+    /* send some quick messages */
+    for _ in 0..10 {
         sock.send(&[0, 2, 3]).unwrap();
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(Duration::from_millis(50));
     }
 }
