@@ -2,6 +2,9 @@ extern crate netev;
 use std::thread;
 use std::time::Duration;
 
+mod simple_msg;
+use simple_msg::Msg;
+
 fn main() {
     /* usage example */
 
@@ -12,7 +15,7 @@ fn main() {
        it spawns a slave thread that populates an event queue based
        on packets it receives in the port
     */
-    let mut poller = netev::EvMaster::new("8000");
+    let mut popper = netev::Popper::bind("8000");
 
     /* game loop */
     loop {
@@ -22,13 +25,9 @@ fn main() {
            the event if there is one (popping it from the queue), or
            None if there are none at the moment
         */
-        if let Some(e) = poller.next() {
-            println!("got event: {:?}", e);
-        }
 
-        /*
-           simulate game logic with a sleep
-        */
-        thread::sleep(Duration::from_millis(500));
+        if let Some(msg) = popper.pop::<Msg>() {
+            println!("we got a msg!\n{:?}", msg);
+        }
     }
 }

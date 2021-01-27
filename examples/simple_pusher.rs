@@ -1,17 +1,20 @@
+extern crate netev;
 use std::net::UdpSocket;
 use std::thread;
 use std::time::Duration;
+mod simple_msg;
+use simple_msg::Msg;
 
 fn main() {
     /*
        we can use this simple program to send dummy packets
        to our program to test the events it produces
     */
-    let sock = UdpSocket::bind("localhost:34254").unwrap();
-    sock.connect("localhost:8000").unwrap();
+    let mut pusher = netev::Pusher::bind("35423", "localhost:8000");
     /* send some quick messages */
-    for _ in 0..10 {
-        sock.send(&[0, 2, 3]).unwrap();
-        thread::sleep(Duration::from_millis(50));
-    }
+    let msg = Msg {
+        name: "Eduard".to_owned(),
+        age: 19,
+    };
+    pusher.push(&msg);
 }
