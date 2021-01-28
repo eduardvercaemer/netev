@@ -1,6 +1,4 @@
 extern crate netev;
-use std::thread;
-use std::time::Duration;
 
 mod simple_msg;
 use simple_msg::Msg;
