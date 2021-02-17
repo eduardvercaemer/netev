@@ -1,9 +1,7 @@
 extern crate netev;
 
-mod simple_msg;
-use simple_msg::Msg;
-use std::thread::sleep;
-use std::time::Duration;
+mod msg;
+use msg::Msg;
 
 fn main() {
     /* usage example */
@@ -16,7 +14,7 @@ fn main() {
        on packets it receives at the port
     */
     println!("Listening on port 8000 . . .");
-    let mut popper = netev::Popper::bind("localhost:8000")
+    let mut receiver = netev::Receiver::<Msg>::bind("localhost:8000")
         .expect("Failed to bind event listener");
 
     /* game loop */
@@ -27,7 +25,7 @@ fn main() {
            the event if there is one (popping it from the queue), or
            None if there are none at the moment
         */
-        while let Some(msg) = popper.pop::<Msg>() {
+        while let Some(msg) = receiver.try_recv() {
             println!("Main thread popped a message !");
             dbg!(msg);
         }

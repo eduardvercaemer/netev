@@ -1,6 +1,6 @@
 extern crate netev;
-mod simple_msg;
-use simple_msg::Msg;
+mod msg;
+use msg::Msg;
 use text_io::read;
 
 fn main() {
@@ -9,7 +9,7 @@ fn main() {
        to our program to test the events it produces
     */
     println!("Connecting to localhost:8000 . . .");
-    let mut pusher = netev::Pusher::bind("localhost:35423", "localhost:8000")
+    let mut pusher = netev::Sender::<Msg>::bind("localhost:35423", "localhost:8000")
         .expect("Failed to bind event pusher !");
     /* send some quick messages */
     loop {
