@@ -1,6 +1,7 @@
 extern crate serde;
-extern crate serde_json;
+extern crate bincode;
 use std::net::UdpSocket;
+use std::error::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 mod low;
@@ -22,10 +23,10 @@ pub struct Pusher{
 
 impl Popper {
     /// Create new `Popper` listening on given port
-    pub fn bind(port: &str) -> Self {
-        Self {
-            queue: low::EvMaster::new(port),
-        }
+    pub fn bind(port: &str) -> Result<Self, Box<dyn Error>> {
+        Ok(Self {
+            queue: low::EvMaster::new(port)?,
+        })
     }
 
     /// Pop a packet from the queue and attempt to
@@ -37,9 +38,10 @@ impl Popper {
         match self.queue.next() {
             Some(data) => {
                 // we popped a packet from the queue
-                let de = serde_json::from_slice(data.bytes.as_slice());
-                let de = de.unwrap();
-                Some(de)
+                match bincode::deserialize(data.bytes.as_slice()) {
+                    Ok(e) => Some(e),
+                    Err(_) => None,
+                }
             }
             _ => {
                 None
@@ -49,17 +51,21 @@ impl Popper {
 }
 
 impl Pusher {
-    pub fn bind(port: &str, dest: &str) -> Self {
-        let sock = UdpSocket::bind(format!("localhost:{}", port)).unwrap();
-        sock.connect(dest).unwrap();
-        Self { sock }
+    /// Attempt to create a pusher bound to a port, and connected
+    /// to a destination
+    pub fn bind(port: &str, dest: &str) -> Result<Self, Box<dyn Error>> {
+        let sock = UdpSocket::bind(port)?;
+        sock.connect(dest)?;
+        Ok(Self { sock })
     }
 
-    pub fn push<T>(&mut self, e: &T)
+    /// Use a pusher to send a serialize object to its destination
+    pub fn push<T>(&mut self, e: &T) -> Result<(), Box<dyn Error>>
     where
         T: Serialize,
     {
-        let buf = serde_json::to_vec(&e).unwrap();
-        self.sock.send(buf.as_slice()).unwrap();
+        let buf = bincode::serialize(&e)?;
+        self.sock.send(buf.as_slice())?;
+        Ok(())
     }
 }

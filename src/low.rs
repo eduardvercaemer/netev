@@ -1,6 +1,7 @@
 use std::net::UdpSocket;
 use std::thread;
 use std::sync::mpsc;
+use std::error::Error;
 
 /// # Slave event listener
 /// 
@@ -64,7 +65,7 @@ pub struct Packet {
 impl EvMaster {
     /// Create new master thread with corresponding slave thread
     /// listening on given port
-    pub fn new(port: &str) -> Self {
+    pub fn new(port: &str) -> Result<Self, Box<dyn Error>> {
         const MAX_PACKET_SIZE: usize = 256;
 
         // master to slave
@@ -73,8 +74,8 @@ impl EvMaster {
         let (tx1, rx1) = mpsc::channel();
         
         // create the socket
-        let sock = UdpSocket::bind(format!("localhost:{}", port)).unwrap();
-        sock.set_nonblocking(true).unwrap();
+        let sock = UdpSocket::bind(port)?;
+        sock.set_nonblocking(true)?;
 
         // create the slave
         let mut slave = EvSlave {
@@ -85,6 +86,7 @@ impl EvMaster {
         };
 
         // move slave into own thread
+        // TODO: handle panics in here !!!
         thread::spawn(move || loop {
             // see if there are requests
             if let Ok(msg) = slave.rx.try_recv() {
@@ -126,10 +128,10 @@ impl EvMaster {
         });
 
         // return the new master
-        Self {
+        Ok(Self {
             tx: tx0,
             rx: rx1,
-        }
+        })
     }
 
     /// Ask for next packet in owned slave thread

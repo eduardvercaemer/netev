@@ -2,6 +2,8 @@ extern crate netev;
 
 mod simple_msg;
 use simple_msg::Msg;
+use std::thread::sleep;
+use std::time::Duration;
 
 fn main() {
     /* usage example */
@@ -11,9 +13,11 @@ fn main() {
        8000 in this case
 
        it spawns a slave thread that populates an event queue based
-       on packets it receives in the port
+       on packets it receives at the port
     */
-    let mut popper = netev::Popper::bind("8000");
+    println!("Listening on port 8000 . . .");
+    let mut popper = netev::Popper::bind("localhost:8000")
+        .expect("Failed to bind event listener");
 
     /* game loop */
     loop {
@@ -23,9 +27,9 @@ fn main() {
            the event if there is one (popping it from the queue), or
            None if there are none at the moment
         */
-
-        if let Some(msg) = popper.pop::<Msg>() {
-            println!("we got a msg!\n{:?}", msg);
+        while let Some(msg) = popper.pop::<Msg>() {
+            println!("Main thread popped a message !");
+            dbg!(msg);
         }
     }
 }

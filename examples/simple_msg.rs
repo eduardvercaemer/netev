@@ -6,3 +6,7 @@ pub struct Msg {
     pub age: u8,
     pub name: String,
 }
+
+pub fn main() {
+    panic!();
+}
