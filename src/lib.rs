@@ -1,8 +1,8 @@
-use std::net::UdpSocket;
-use std::thread;
-use std::sync::mpsc;
 use std::error::Error;
 use std::marker::PhantomData;
+use std::net::UdpSocket;
+use std::sync::mpsc;
+use std::thread;
 use serde::Serialize;
 use serde::de::{DeserializeOwned};
 
@@ -45,7 +45,7 @@ pub struct Receiver<T> {
 /// - if it does not answer back to a request, the master thread will
 ///   be locked forever
 /// - Add support for multiple UDP ports or even TCP connections
-struct EvSlave {
+struct ReceiverSlave {
     /// Queue of packets
     queue: Vec<Packet>,
     /// Socket the slave binds to
@@ -77,7 +77,7 @@ enum Msg {
 #[derive(Debug)]
 pub struct Packet {
     pub bytes: Vec<u8>,
-    pub addr: String,
+    pub addr: std::net::SocketAddr,
 }
 
 impl<T> Receiver<T>
@@ -86,9 +86,6 @@ where
 {
     /// Create new  netev [`Receiver`] with its own slave listening thread
     pub fn bind(port: &str) -> Result<Self, Box<dyn Error>> {
-        // XXX: Change this !!!
-        const MAX_PACKET_SIZE: usize = 256;
-
         // master to slave
         let (tx0, rx0) = mpsc::channel();
         // slave to master
@@ -99,7 +96,7 @@ where
         sock.set_nonblocking(true)?;
 
         // create the slave
-        let mut slave = EvSlave {
+        let mut slave = ReceiverSlave {
             tx: tx1,
             rx: rx0,
             queue: vec![],
@@ -109,43 +106,7 @@ where
         // move slave into own thread
         // TODO: handle panics in here !!!
         thread::spawn(move || loop {
-            // see if there are requests
-            if let Ok(msg) = slave.rx.try_recv() {
-                //println!("slave: got request from master . . .");
-                // handle the request if there is one
-                match msg {
-                    // master asked for next event in queue
-                    Msg::Req => {
-                        if slave.queue.len() == 0 {
-                            // queue is empty
-                            slave.tx.send(Msg::Empty).unwrap();
-                        } else {
-                            // dispatch next event in queue
-                            let top = slave.queue.pop().unwrap();
-                            slave.tx.send(Msg::Packet(top)).unwrap();
-                        }
-                    }
-                    // some unexpected error
-                    _ => {
-                        slave.tx.send(Msg::Err).unwrap();
-                    }
-                }
-            }
-
-            // slave logic . . .
-            // get packets of up to MAX_PACKET_SIZE bytes
-            let mut buf: Vec<u8> = Vec::with_capacity(MAX_PACKET_SIZE);
-            buf.resize(MAX_PACKET_SIZE, 0);
-
-            // attempt to receive a packet
-            if let Ok((bytes, addr)) = slave.sock.recv_from(&mut buf[..]) {
-                println!("slave: receive {} bytes from {}", bytes, addr);
-                buf.resize(bytes, 0);
-                slave.queue.push(Packet {
-                    bytes: buf,
-                    addr: format!("{}", addr),
-                });
-            }
+            slave.run();
         });
 
         // return the new master
@@ -194,4 +155,49 @@ where
         Ok(())
     }
 
+}
+
+impl ReceiverSlave {
+    // XXX:
+    // replace this constant for a generic that uses the size of the type
+    const MAX_PACKET_SIZE: usize = 256;
+
+    /// XXX: handle panics
+    fn run(&mut self) {
+        // see if there are requests
+        if let Ok(msg) = self.rx.try_recv() {
+            // handle the request if there is one
+            match msg {
+                // master asked for next event in queue
+                Msg::Req => {
+                    if self.queue.len() == 0 {
+                        // queue is empty
+                        self.tx.send(Msg::Empty).unwrap();
+                    } else {
+                        // dispatch next event in queue
+                        let top = self.queue.pop().unwrap();
+                        self.tx.send(Msg::Packet(top)).unwrap();
+                    }
+                }
+                // some unexpected error
+                _ => {
+                    self.tx.send(Msg::Err).unwrap();
+                }
+            }
+        }
+
+        // slave logic . . .
+        // get packets of up to MAX_PACKET_SIZE bytes
+        let mut buf: Vec<u8> = Vec::with_capacity(Self::MAX_PACKET_SIZE);
+        buf.resize(Self::MAX_PACKET_SIZE, 0);
+
+        // attempt to receive a packet
+        if let Ok((bytes, addr)) = self.sock.recv_from(&mut buf[..]) {
+            buf.resize(bytes, 0);
+            self.queue.push(Packet {
+                bytes: buf,
+                addr,
+            });
+        }
+    }
 }
