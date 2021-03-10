@@ -2,6 +2,15 @@
 
 Simple UDP message queue system for rust.
 
+Run the client and server examples in `./examples`.
+```
+$ cargo run --example receiver
+```
+and
+```
+$ cargo run --example sender
+```
+
 #### Usage
 
 Listening for UDP messages:
